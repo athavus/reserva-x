@@ -1,21 +1,65 @@
+"""
+Aplicação principal FastAPI para gerenciamento de horários do laboratório.
+"""
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
-
+from fastapi.middleware.cors import CORSMiddleware
 from database import create_db_and_tables
+from routers.auth import router as auth_router
 from routers.users import router as users_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Gerencia o ciclo de vida da aplicação."""
+    # Startup: cria tabelas no banco
     create_db_and_tables()
     yield
+    # Shutdown: adicione aqui qualquer limpeza necessária
 
 
 app = FastAPI(
     title="Embedded Schedules",
     description="API para a aplicação de horários para o laboratório embedded",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
+# Configuração CORS para permitir requisições do frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Em produção, especifique os domínios permitidos
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Incluir routers
+app.include_router(auth_router)
 app.include_router(users_router)
+
+
+@app.get(
+    "/",
+    tags=["Root"],
+    summary="Rota raiz",
+    description="Retorna informações básicas sobre a API"
+)
+def read_root():
+    """Retorna informações básicas sobre a API."""
+    return {
+        "message": "Bem-vindo à API Embedded Schedules",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+
+
+@app.get(
+    "/health",
+    tags=["Health"],
+    summary="Health check",
+    description="Verifica se a API está funcionando"
+)
+def health_check():
+    """Verifica o status da aplicação."""
+    return {"status": "ok"}
