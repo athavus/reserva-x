@@ -107,3 +107,26 @@ def require_professor(
             detail="Apenas professores podem acessar este recurso"
         )
     return current_user
+
+
+def require_admin(
+    current_user: Annotated[User, Depends(get_current_active_user)]
+) -> User:
+    """
+    Dependência que garante que o usuário é um administrador.
+    
+    Args:
+        current_user: Usuário atual
+        
+    Returns:
+        Usuário administrador
+        
+    Raises:
+        HTTPException: Se o usuário não for administrador
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas administradores podem acessar este recurso"
+        )
+    return current_user

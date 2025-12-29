@@ -8,6 +8,7 @@ from sqlmodel import Field, SQLModel
 class Role(str, Enum):
     aluno = "aluno"
     professor = "professor"
+    admin = "admin"
 
 
 class User(SQLModel, table=True):

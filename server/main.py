@@ -13,7 +13,11 @@ from routers.users import router as users_router
 async def lifespan(app: FastAPI):
     """Gerencia o ciclo de vida da aplicação."""
     # Startup: cria tabelas no banco
-    create_db_and_tables()
+    try:
+        create_db_and_tables()
+    except Exception as e:
+        print(f"\n⚠️  Aviso: Não foi possível criar/verificar tabelas: {e}")
+        print("   A aplicação continuará, mas algumas funcionalidades podem não funcionar.\n")
     yield
     # Shutdown: adicione aqui qualquer limpeza necessária
 
