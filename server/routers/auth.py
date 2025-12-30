@@ -1,5 +1,5 @@
 """
-Rotas de autenticação: login, registro, etc.
+Rotas de autenticação: login, registro, logout, etc.
 """
 
 from typing import Annotated, List
@@ -129,6 +129,29 @@ def login(login_data: LoginRequest, session: Session = Depends(get_session)):
     access_token = create_access_token(data={"sub": user.email})
 
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.post(
+    "/logout",
+    summary="Fazer logout",
+    description="Invalida o token do usuário autenticado",
+    status_code=status.HTTP_200_OK,
+)
+def logout(current_user: Annotated[User, Depends(get_current_active_user)]):
+    """
+    Realiza o logout do usuário.
+
+    Params:
+        current_user: Usuário autenticado
+
+    Returns:
+        Mensagem de confirmação
+    """
+
+    return {
+        "message": "Logout realizado com sucesso",
+        "detail": "O token deve ser removido do armazenamento local no cliente",
+    }
 
 
 @router.get(

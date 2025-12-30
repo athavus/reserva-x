@@ -638,5 +638,52 @@ class TestAuth(unittest.TestCase):
         self.assertEqual(me_response.json()["email"], "completo@example.com")
 
 
+    # ========== Testes para Logout ==========
+    
+    def test_logout_success(self):
+        """Testa o logout com sucesso."""
+        # Criar usuário e fazer login
+        user = User(
+            email="logout@example.com",
+            hashed_password=hash_password("senha12345"),
+            role=Role.aluno,
+            project_name="Projeto Logout",
+            is_active=True
+        )
+        self.session.add(user)
+        self.session.commit()
+        
+        login_response = self.client.post(
+            "/auth/login",
+            json={
+                "email": "logout@example.com",
+                "password": "senha12345"
+            }
+        )
+        token = login_response.json()["access_token"]
+        
+        # Fazer logout
+        response = self.client.post(
+            "/auth/logout",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Logout realizado", response.json()["message"])
+    
+    def test_logout_without_token(self):
+        """Testa logout sem token."""
+        response = self.client.post("/auth/logout")
+        self.assertEqual(response.status_code, 401)
+    
+    def test_logout_invalid_token(self):
+        """Testa logout com token inválido."""
+        response = self.client.post(
+            "/auth/logout",
+            headers={"Authorization": "Bearer token_invalido"}
+        )
+        self.assertEqual(response.status_code, 401)
+
+
 if __name__ == "__main__":
     unittest.main()
