@@ -325,8 +325,9 @@ class TestReservations(unittest.TestCase):
         self.session.commit()
         
         # Verifica tempo até início
+        # Nota: SQLite não preserva timezone, então usamos start_time original
         now = datetime.now(timezone.utc)
-        time_until_start = (reservation.start_time - now).total_seconds() / 60
+        time_until_start = (start_time - now).total_seconds() / 60
         
         self.assertLess(time_until_start, 30, "Deve estar dentro dos 30 minutos")
         # Na API, isso bloquearia cancelamento/edição
