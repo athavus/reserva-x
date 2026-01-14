@@ -1,7 +1,3 @@
-"""
-Testes para as rotas de usuários usando unittest.
-Execute com: python -m unittest server/tests/test_users.py
-"""
 import unittest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine, select

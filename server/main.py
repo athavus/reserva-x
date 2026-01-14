@@ -7,6 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import create_db_and_tables
 from routers.auth import router as auth_router
 from routers.users import router as users_router
+from routers.laboratories import router as laboratories_router
+from routers.computers import router as computers_router
+from routers.access import router as access_router
+from routers.reservations import router as reservations_router
 
 
 @asynccontextmanager
@@ -24,7 +28,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Embedded Schedules",
-    description="API para a aplicação de horários para o laboratório embedded",
+    description="API para gerenciamento de horários do laboratório embedded",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -41,6 +45,10 @@ app.add_middleware(
 # Incluir routers
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(laboratories_router)
+app.include_router(computers_router)
+app.include_router(access_router)
+app.include_router(reservations_router)
 
 
 @app.get(
@@ -54,7 +62,15 @@ def read_root():
     return {
         "message": "Bem-vindo à API Embedded Schedules",
         "version": "1.0.0",
-        "docs": "/docs"
+        "docs": "/docs",
+        "endpoints": {
+            "auth": "/auth",
+            "users": "/users",
+            "laboratories": "/laboratories",
+            "computers": "/computers",
+            "access": "/access",
+            "reservations": "/reservations"
+        }
     }
 
 

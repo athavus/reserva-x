@@ -5,7 +5,7 @@ Rotas de gerenciamento de usuários (protegidas por autenticação).
 from typing import List
 
 from database import get_session
-from dependencies import get_current_active_user, require_professor
+from dependencies import get_current_user, get_current_professor_or_admin
 from fastapi import APIRouter, Depends, HTTPException, status
 from models import User
 from schemas import UserResponse
@@ -25,7 +25,7 @@ router = APIRouter(
 )
 def read_users(
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_professor),  # Apenas professores
+    current_user: User = Depends(get_current_professor_or_admin),  # Apenas professores
 ):
     """
     Lista todos os usuários do sistema.
@@ -52,7 +52,7 @@ def read_users(
 def read_user_by_id(
     user_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Busca um usuário pelo ID.
@@ -95,7 +95,7 @@ def read_user_by_id(
 def activate_user(
     user_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_professor),
+    current_user: User = Depends(get_current_professor_or_admin),
 ):
     """
     Ativa um usuário inativo.
@@ -136,7 +136,7 @@ def activate_user(
 def deactivate_user(
     user_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_professor),
+    current_user: User = Depends(get_current_professor_or_admin),
 ):
     """
     Desativa um usuário ativo.
@@ -177,7 +177,7 @@ def deactivate_user(
 def delete_user(
     user_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_professor),
+    current_user: User = Depends(get_current_professor_or_admin),
 ):
     """
     Deleta um usuário do sistema.
