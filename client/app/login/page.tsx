@@ -14,7 +14,7 @@ export default function LoginPage() {
     e.preventDefault();
     // Simulação de login de admin
     if (email === "admin@reservax.com" && password === "admin123") {
-      router.push("/admin");
+      router.push("/admin-dashboard");
     } else {
       alert("Credenciais inválidas! Para testar o admin use:\nEmail: admin@reservax.com\nSenha: admin123");
     }

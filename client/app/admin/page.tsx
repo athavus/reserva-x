@@ -2,16 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Bell,
-  User as UserIcon,
-  Check,
-  X,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Search,
-} from "lucide-react";
+import { Bell, User as UserIcon, Check, X, CheckCircle, XCircle } from "lucide-react";
 
 type UserStatus = "Aprovado" | "Reprovado" | "Pendente";
 
