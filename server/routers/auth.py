@@ -5,7 +5,7 @@ Rotas de autenticação: login, registro, logout, etc.
 from typing import Annotated, List
 
 from database import get_session
-from dependencies import get_current_active_user, require_admin
+from dependencies import get_current_user, get_current_admin
 from fastapi import APIRouter, Depends, HTTPException, status
 from models import RegistrationRequest, Role, User
 from schemas import (
@@ -137,7 +137,7 @@ def login(login_data: LoginRequest, session: Session = Depends(get_session)):
     description="Invalida o token do usuário autenticado",
     status_code=status.HTTP_200_OK,
 )
-def logout(current_user: Annotated[User, Depends(get_current_active_user)]):
+def logout(current_user: Annotated[User, Depends(get_current_user)]):
     """
     Realiza o logout do usuário.
 
@@ -162,7 +162,7 @@ def logout(current_user: Annotated[User, Depends(get_current_active_user)]):
 )
 def list_registration_requests(
     session: Session = Depends(get_session),
-    current_user: Annotated[User, Depends(require_admin)] = None,
+    current_user: Annotated[User, Depends(get_current_admin)] = None,
 ):
     """
     Lista todas as solicitações de cadastro pendentes.
@@ -193,7 +193,7 @@ def approve_registration_request(
     request_id: int,
     approval_data: RegistrationRequestApprove,
     session: Session = Depends(get_session),
-    current_user: Annotated[User, Depends(require_admin)] = None,
+    current_user: Annotated[User, Depends(get_current_admin)] = None,
 ):
     """
     Aprova uma solicitação de cadastro e cria o usuário no sistema.
@@ -278,7 +278,7 @@ def approve_registration_request(
 def reject_registration_request(
     request_id: int,
     session: Session = Depends(get_session),
-    current_user: Annotated[User, Depends(require_admin)] = None,
+    current_user: Annotated[User, Depends(get_current_admin)] = None,
 ):
     """
     Rejeita uma solicitação de cadastro marcando-a como processada.
@@ -318,7 +318,7 @@ def reject_registration_request(
     description="Retorna os dados do usuário autenticado",
     response_model=UserResponse,
 )
-def get_me(current_user: Annotated[User, Depends(get_current_active_user)]):
+def get_me(current_user: Annotated[User, Depends(get_current_user)]):
     """
     Retorna os dados do usuário autenticado.
 
