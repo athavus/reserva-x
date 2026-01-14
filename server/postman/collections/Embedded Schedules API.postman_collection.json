@@ -1,0 +1,1025 @@
+{
+  "info": {
+    "_postman_id": "db7eb636-54cd-4b2c-b271-ccc13f5a19c4",
+    "name": "Embedded Schedules API",
+    "description": "API para gerenciamento de horários do laboratório embedded. Esta coleção contém todos os endpoints para autenticação, gerenciamento de usuários, laboratórios, computadores, controle de acesso e reservas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Root",
+      "item": [
+        {
+          "name": "Get API Info",
+          "id": "1de91a44-5605-4943-b7c3-4cc5b3c1530b",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Retorna informações básicas sobre a API"
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "id": "0a993a7c-4203-4a6b-bfce-d32e529e4dbf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Verifica se a API está funcionando"
+          },
+          "response": []
+        }
+      ],
+      "id": "2a80ad67-f6fe-43e8-8c24-939e6aed37a1"
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Request Registration",
+          "id": "ede85e69-58c2-4302-8db4-e603aea93a03",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"project_name\": \"Projeto Exemplo\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-registration",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-registration"
+              ]
+            },
+            "description": "Permite que um usuário não autenticado solicite ao administrador que faça o cadastro (RF05)"
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "id": "097303b9-039a-4906-b9fa-75e27e43a0df",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@embedded.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Autentica um usuário e retorna um token JWT"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "id": "9e93dcc0-87a4-4796-a480-2c0378472747",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Invalida o token do usuário autenticado"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "id": "9f0ac146-0a7a-48ab-9a3f-faba2b135aec",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Retorna os dados do usuário autenticado"
+          },
+          "response": []
+        },
+        {
+          "name": "List Registration Requests",
+          "id": "613ef57a-ce9d-4dfc-9c4f-d5b8b9f4902e",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/registration-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "registration-requests"
+              ]
+            },
+            "description": "Lista todas as solicitações de cadastro pendentes (apenas administradores) (RF07)"
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Registration Request",
+          "id": "ad814cc4-4d5f-40b8-b943-e5862dc96c36",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"aluno\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/registration-requests/:request_id/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "registration-requests",
+                ":request_id",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "request_id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Aprova uma solicitação de cadastro e cria o usuário (apenas administradores) (RF07)"
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Registration Request",
+          "id": "8e4f80ad-6e4e-4741-96a7-d4f6a68eb023",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/registration-requests/:request_id/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "registration-requests",
+                ":request_id",
+                "reject"
+              ],
+              "variable": [
+                {
+                  "key": "request_id"
+                }
+              ]
+            },
+            "description": "Rejeita uma solicitação de cadastro (apenas administradores) (RF07)"
+          },
+          "response": []
+        }
+      ],
+      "id": "6504cef7-881a-43c2-931c-a7c499ef4eef"
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "id": "63a2a464-162b-4a55-995c-53ff2a4529a3",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ""
+              ]
+            },
+            "description": "Retorna a lista com todos os usuários (apenas professores)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "id": "e011ffb0-0203-410f-9d43-65dc706cd76c",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/:user_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":user_id"
+              ],
+              "variable": [
+                {
+                  "key": "user_id"
+                }
+              ]
+            },
+            "description": "Retorna os dados de um usuário específico"
+          },
+          "response": []
+        },
+        {
+          "name": "Activate User",
+          "id": "b3cade2e-7f2a-49c5-ad8d-3bbad7b3a710",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/:user_id/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":user_id",
+                "activate"
+              ],
+              "variable": [
+                {
+                  "key": "user_id"
+                }
+              ]
+            },
+            "description": "Ativa um usuário inativo (apenas professores)"
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate User",
+          "id": "ffdb22a7-b94c-44c1-a348-7ebab2a13255",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/:user_id/deactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":user_id",
+                "deactivate"
+              ],
+              "variable": [
+                {
+                  "key": "user_id"
+                }
+              ]
+            },
+            "description": "Desativa um usuário ativo (apenas professores)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "id": "09540bcb-f5a0-4925-86f8-59801956b426",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/:user_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":user_id"
+              ],
+              "variable": [
+                {
+                  "key": "user_id"
+                }
+              ]
+            },
+            "description": "Remove um usuário do sistema (apenas professores)"
+          },
+          "response": []
+        }
+      ],
+      "id": "c996b8e5-0c62-4aa8-8ee0-6b17cee9b0ed"
+    },
+    {
+      "name": "Laboratories",
+      "item": [
+        {
+          "name": "Create Laboratory",
+          "id": "90e4a043-1e32-4e89-a413-7acb3acfeeeb",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lab Embedded 01\",\n  \"description\": \"Laboratório de sistemas embarcados\",\n  \"capacity\": 20\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/laboratories/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "laboratories",
+                ""
+              ]
+            },
+            "description": "Permite que o administrador cadastre um novo laboratório (RF13)"
+          },
+          "response": []
+        },
+        {
+          "name": "List Laboratories",
+          "id": "5c327ea5-4956-4cb9-a32e-f893387df326",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/laboratories/?include_inactive=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "laboratories",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "include_inactive",
+                  "value": "false",
+                  "description": "Incluir laboratórios inativos"
+                }
+              ]
+            },
+            "description": "Lista todos os laboratórios cadastrados"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Laboratory",
+          "id": "afb98a4e-9123-4d6f-b44f-c4e6ba144ccf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/laboratories/:laboratory_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "laboratories",
+                ":laboratory_id"
+              ],
+              "variable": [
+                {
+                  "key": "laboratory_id"
+                }
+              ]
+            },
+            "description": "Obtém detalhes de um laboratório específico"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Laboratory",
+          "id": "db5f24e2-1ea8-4089-932b-ef60586e5f47",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lab Embedded 01 - Atualizado\",\n  \"description\": \"Descrição atualizada\",\n  \"capacity\": 25,\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/laboratories/:laboratory_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "laboratories",
+                ":laboratory_id"
+              ],
+              "variable": [
+                {
+                  "key": "laboratory_id"
+                }
+              ]
+            },
+            "description": "Permite que o administrador edite dados de um laboratório (RF15)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Laboratory",
+          "id": "9d8f7084-8d97-43f4-9703-a51c15d41925",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/laboratories/:laboratory_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "laboratories",
+                ":laboratory_id"
+              ],
+              "variable": [
+                {
+                  "key": "laboratory_id"
+                }
+              ]
+            },
+            "description": "Permite que o administrador delete um laboratório (RF14)"
+          },
+          "response": []
+        }
+      ],
+      "id": "c53d1147-1f89-458d-b434-a3094cab2bca"
+    },
+    {
+      "name": "Computers",
+      "item": [
+        {
+          "name": "Create Computer",
+          "id": "5fb8271c-00f1-436e-a914-09184c1df552",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PC-01\",\n  \"laboratory_id\": 1,\n  \"specifications\": \"Intel i7, 16GB RAM, SSD 512GB\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/computers/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "computers",
+                ""
+              ]
+            },
+            "description": "Permite que o administrador cadastre um computador em um laboratório (RF19)"
+          },
+          "response": []
+        },
+        {
+          "name": "List Computers",
+          "id": "2afd6b59-b09b-45ca-89eb-687ee872c7f6",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/computers/?include_inactive=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "computers",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "laboratory_id",
+                  "value": "",
+                  "description": "Filtrar por laboratório",
+                  "disabled": true
+                },
+                {
+                  "key": "include_inactive",
+                  "value": "false",
+                  "description": "Incluir computadores inativos"
+                }
+              ]
+            },
+            "description": "Lista todos os computadores cadastrados"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Computer",
+          "id": "8cbbb909-47c0-492a-b81d-3f3194a70ac2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/computers/:computer_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "computers",
+                ":computer_id"
+              ],
+              "variable": [
+                {
+                  "key": "computer_id"
+                }
+              ]
+            },
+            "description": "Obtém detalhes de um computador específico"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Computer",
+          "id": "e3d4d94f-cfd4-49f2-affd-9bc40777f40a",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PC-01-Updated\",\n  \"specifications\": \"Intel i9, 32GB RAM, SSD 1TB\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/computers/:computer_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "computers",
+                ":computer_id"
+              ],
+              "variable": [
+                {
+                  "key": "computer_id"
+                }
+              ]
+            },
+            "description": "Permite que o administrador edite dados de um computador (RF21)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Computer",
+          "id": "c5797190-21b5-4144-926f-b5dfe3f57d81",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/computers/:computer_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "computers",
+                ":computer_id"
+              ],
+              "variable": [
+                {
+                  "key": "computer_id"
+                }
+              ]
+            },
+            "description": "Permite que o administrador delete um computador (RF20)"
+          },
+          "response": []
+        }
+      ],
+      "id": "edc5b5bc-b577-4401-9ac6-17a1cfb73820"
+    },
+    {
+      "name": "Access Control",
+      "item": [
+        {
+          "name": "Grant Laboratory Access",
+          "id": "c0a96c80-a779-430e-851a-932f2b73f4c2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"laboratory_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/access/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "access",
+                ""
+              ]
+            },
+            "description": "Permite que o administrador cadastre os laboratórios que um usuário pode acessar (RF18)"
+          },
+          "response": []
+        },
+        {
+          "name": "List User Access",
+          "id": "54a01f15-e391-488e-a5c0-9a3af02a77f4",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/access/user/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "access",
+                "user",
+                "1"
+              ]
+            },
+            "description": "Lista todos os laboratórios que um usuário pode acessar"
+          },
+          "response": []
+        },
+        {
+          "name": "List Laboratory Access",
+          "id": "03651d7b-007f-4d24-b2ba-dd2c4c3a9db6",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/access/laboratory/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "access",
+                "laboratory",
+                "1"
+              ]
+            },
+            "description": "Lista todos os usuários que têm acesso a um laboratório"
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke Access",
+          "id": "c7d53248-6444-4fd9-b95f-50a036efaa5f",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/access/:access_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "access",
+                ":access_id"
+              ],
+              "variable": [
+                {
+                  "key": "access_id"
+                }
+              ]
+            },
+            "description": "Permite que o administrador revogue o acesso de um usuário a um laboratório"
+          },
+          "response": []
+        }
+      ],
+      "id": "3656f0eb-cd0e-4d49-af73-9d47bcfd34af"
+    },
+    {
+      "name": "Reservations",
+      "item": [
+        {
+          "name": "Create Reservation",
+          "id": "4608e3ab-c585-490d-8bf3-8c87d923325a",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"laboratory_id\": 1,\n  \"computer_id\": null,\n  \"reservation_type\": \"room\",\n  \"start_time\": \"2025-01-15T09:00:00Z\",\n  \"end_time\": \"2025-01-15T11:00:00Z\",\n  \"title\": \"Aula de Sistemas Embarcados\",\n  \"description\": \"Aula prática com Arduino\",\n  \"is_confidential\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reservations/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ""
+              ]
+            },
+            "description": "Permite que professor ou aluno solicite reserva de espaço ou computador (RF01, RF17)"
+          },
+          "response": []
+        },
+        {
+          "name": "List Reservations",
+          "id": "38769214-2d0c-44fa-b8f5-8ede5468f34d",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/?my_reservations=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "laboratory_id",
+                  "value": "",
+                  "description": "Filtrar por laboratório",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Filtrar por status (pending, approved, rejected)",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "",
+                  "description": "Data início do período",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "",
+                  "description": "Data fim do período",
+                  "disabled": true
+                },
+                {
+                  "key": "my_reservations",
+                  "value": "false",
+                  "description": "Apenas minhas reservas"
+                }
+              ]
+            },
+            "description": "Lista reservas com filtros opcionais (RF03)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Reservation",
+          "id": "b38c8c2d-0b00-482b-a8a3-5352b5d56b7f",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/:reservation_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ":reservation_id"
+              ],
+              "variable": [
+                {
+                  "key": "reservation_id"
+                }
+              ]
+            },
+            "description": "Obtém detalhes de uma reserva específica"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Reservation",
+          "id": "77a305b7-555c-49a5-9883-c4c0609d65de",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_time\": \"2025-01-15T10:00:00Z\",\n  \"end_time\": \"2025-01-15T12:00:00Z\",\n  \"title\": \"Aula Atualizada\",\n  \"description\": \"Descrição atualizada\",\n  \"is_confidential\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reservations/:reservation_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ":reservation_id"
+              ],
+              "variable": [
+                {
+                  "key": "reservation_id"
+                }
+              ]
+            },
+            "description": "Permite que criador ou admin edite uma reserva (RF02, RF12)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Reservation",
+          "id": "3d3dae1d-5ec1-44dc-a1b7-b9a8cb8ff6e1",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/:reservation_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ":reservation_id"
+              ],
+              "variable": [
+                {
+                  "key": "reservation_id"
+                }
+              ]
+            },
+            "description": "Permite que criador remova sua solicitação (RF04)"
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Reservation",
+          "id": "0b53e85f-d767-43e8-b6d8-62ed75f6bad2",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/:reservation_id/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ":reservation_id",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "reservation_id"
+                }
+              ]
+            },
+            "description": "Permite que administrador aprove uma reserva (RF10)"
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Reservation",
+          "id": "714c1711-8292-4044-81c1-c3fb11f7ebc1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rejection_reason\": \"Horário indisponível devido a manutenção\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reservations/:reservation_id/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ":reservation_id",
+                "reject"
+              ],
+              "variable": [
+                {
+                  "key": "reservation_id"
+                }
+              ]
+            },
+            "description": "Permite que administrador reprove uma reserva (RF11)"
+          },
+          "response": []
+        }
+      ],
+      "id": "667171a8-ff59-40f9-a6c3-4b3dab087fdb"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "id": "3ceaa42d-a3e9-4778-8486-cd20bb7dd381",
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "id": "b65742cd-56f4-4f02-acaa-8cffe5b5f24f",
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
