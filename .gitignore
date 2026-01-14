@@ -9,4 +9,3 @@ server/__pycache__
 server/.env
 server/.postman
 *.pyc
-*.pyc
