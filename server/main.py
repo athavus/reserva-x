@@ -51,8 +51,9 @@ app.include_router(access_router)
 app.include_router(reservations_router)
 
 
-@app.get(
+@app.api_route(
     "/",
+    methods=["GET", "HEAD"],
     tags=["Root"],
     summary="Rota raiz",
     description="Retorna informações básicas sobre a API"
