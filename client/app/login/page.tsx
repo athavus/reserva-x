@@ -1,22 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Calendar, Lock, User, UserPlus, LogIn } from "lucide-react";
+
+const API_BASE_URL = "http://localhost:8000";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simulação de login de admin
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+
+    if (!email || !password) {
+      setError("Preencha e-mail e senha.");
+      return;
+    }
+
     if (email === "admin@reservax.com" && password === "admin123") {
       router.push("/admin-dashboard");
-    } else {
-      alert("Credenciais inválidas! Para testar o admin use:\nEmail: admin@reservax.com\nSenha: admin123");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/`);
+
+      if (!response.ok) {
+        setError("Não foi possível validar o usuário.");
+        return;
+      }
+
+      const users = await response.json();
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const user = users.find(
+        (item: { email: string; hashed_password: string }) =>
+          item.email.toLowerCase() === normalizedEmail &&
+          item.hashed_password === password,
+      );
+
+      if (!user) {
+        setError("Usuário ou senha inválidos.");
+        return;
+      }
+
+      router.push("/home");
+    } catch {
+      setError("Erro ao conectar com o servidor. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,7 +115,7 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   placeholder="exemplo@gmail.com.br"
                   className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-10 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500"
                   required
@@ -98,7 +138,7 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                   placeholder="insira sua senha"
                   className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-10 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500"
                   required
@@ -116,12 +156,19 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1A73E8] px-5 py-3 text-center text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1A73E8] px-5 py-3 text-center text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <LogIn className="h-5 w-5" />
-              Entrar
+              {loading ? "Entrando..." : "Entrar"}
             </button>
           </form>
+
+          {error && (
+            <p className="mt-4 text-center text-sm font-semibold text-red-600">
+              {error}
+            </p>
+          )}
 
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">

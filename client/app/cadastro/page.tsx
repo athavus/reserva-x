@@ -2,10 +2,63 @@
 
 import Link from "next/link";
 import { Calendar, User, Lock, Lightbulb, Building } from "lucide-react";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+
+const API_BASE_URL = "http://localhost:8000";
 
 export default function CadastroPage() {
+  const router = useRouter();
   const [perfil, setPerfil] = useState<"aluno" | "professor">("aluno");
+  const [email, setEmail] = useState("");
+  const [nomeCompleto, setNomeCompleto] = useState("");
+  const [projetoOuDepartamento, setProjetoOuDepartamento] = useState("");
+  const [senha, setSenha] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setErro(null);
+    setSucesso(null);
+
+    if (!email || !senha || !projetoOuDepartamento) {
+      setErro("Preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    setCarregando(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          hashed_password: senha,
+          role: perfil,
+          project_name: projetoOuDepartamento,
+        }),
+      });
+
+      if (!response.ok) {
+        setErro("Não foi possível enviar a solicitação de cadastro.");
+        return;
+      }
+
+      setSucesso("Cadastro solicitado com sucesso. Você já pode fazer login.");
+      setTimeout(() => {
+        router.push("/login");
+      }, 1500);
+    } catch {
+      setErro("Erro ao conectar com o servidor. Tente novamente.");
+    } finally {
+      setCarregando(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#B3D4FC] font-sans">
@@ -35,7 +88,7 @@ export default function CadastroPage() {
             Preencha seus dados para acessar o sistema de reservas
           </p>
 
-          <form className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Perfil Toggle */}
             <div className="space-y-2">
               <label className="block text-base font-bold text-black">
@@ -72,33 +125,39 @@ export default function CadastroPage() {
               <label className="block text-base font-bold text-black">
                 E-mail
               </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <User className="h-6 w-6 text-black" />
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <User className="h-6 w-6 text-black" />
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="exemplo@gmail.com.br"
+                    className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-12 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500 text-lg"
+                    required
+                  />
                 </div>
-                <input
-                  type="email"
-                  placeholder="exemplo@gmail.com.br"
-                  className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-12 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500 text-lg"
-                />
-              </div>
             </div>
 
             {/* Nome Completo */}
             <div className="space-y-2">
-              <label className="block text-base font-bold text-black">
-                Nome completo
-              </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Lock className="h-6 w-6 text-black" />
+                <label className="block text-base font-bold text-black">
+                  Nome completo
+                </label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <User className="h-6 w-6 text-black" />
+                  </div>
+                  <input
+                    type="text"
+                    value={nomeCompleto}
+                    onChange={(event) => setNomeCompleto(event.target.value)}
+                    placeholder="Insira seu nome"
+                    className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-12 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500 text-lg"
+                    required
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Insira seu nome"
-                  className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-12 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500 text-lg"
-                />
-              </div>
             </div>
 
             {/* Campo Condicional: Laboratório/Projeto (Aluno) ou Departamento (Professor) */}
@@ -113,8 +172,11 @@ export default function CadastroPage() {
                   </div>
                   <input
                     type="text"
+                    value={projetoOuDepartamento}
+                    onChange={(event) => setProjetoOuDepartamento(event.target.value)}
                     placeholder="Que projeto você participa?"
                     className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-12 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500 text-lg"
+                    required
                   />
                 </div>
               </div>
@@ -129,23 +191,58 @@ export default function CadastroPage() {
                   </div>
                   <input
                     type="text"
+                    value={projetoOuDepartamento}
+                    onChange={(event) => setProjetoOuDepartamento(event.target.value)}
                     placeholder="Qual seu departamento?"
                     className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-12 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500 text-lg"
+                    required
                   />
                 </div>
               </div>
             )}
 
+            <div className="space-y-2">
+              <label className="block text-base font-bold text-black">
+                Senha
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Lock className="h-6 w-6 text-black" />
+                </div>
+                <input
+                  type="password"
+                  value={senha}
+                  onChange={(event) => setSenha(event.target.value)}
+                  placeholder="Crie uma senha"
+                  className="block w-full rounded-lg border-2 border-[#1A73E8] bg-[#D9D9D9] p-3 pl-12 text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-blue-500 text-lg"
+                  required
+                />
+              </div>
+            </div>
+
             {/* Botão Submit */}
             <div className="flex justify-center pt-6">
               <button
                 type="submit"
-                className="w-48 rounded-xl bg-[#5BA4E5] py-3 text-xl font-bold text-black border-2 border-[#1A73E8] hover:bg-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-300 shadow-md transition-all"
+                disabled={carregando}
+                className="w-48 rounded-xl bg-[#5BA4E5] py-3 text-xl font-bold text-black border-2 border-[#1A73E8] hover:bg-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-300 shadow-md transition-all disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Solicitar
+                {carregando ? "Enviando..." : "Solicitar"}
               </button>
             </div>
           </form>
+
+          {erro && (
+            <p className="mt-4 text-center text-sm font-semibold text-red-600">
+              {erro}
+            </p>
+          )}
+
+          {sucesso && (
+            <p className="mt-4 text-center text-sm font-semibold text-green-700">
+              {sucesso}
+            </p>
+          )}
         </div>
       </main>
     </div>
