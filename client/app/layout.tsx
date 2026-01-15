@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "RESERVAX - Sistema de Reservas",
   description: "Sistema de gerenciamento de reservas de salas e computadores",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
