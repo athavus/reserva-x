@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   Calendar,
   Clock,
@@ -8,41 +11,123 @@ import {
   Monitor,
   Users,
 } from "lucide-react";
-
-const weeklyDays = [
-  { label: "Seg", day: "23", hasEvent: true, highlight: false },
-  { label: "Ter", day: "24", hasEvent: true, highlight: true },
-  { label: "Qua", day: "25", hasEvent: true, highlight: false },
-  { label: "Qui", day: "26", hasEvent: true, highlight: false },
-  { label: "Sex", day: "27", hasEvent: true, highlight: false },
-  { label: "Sáb", day: "28", hasEvent: false, highlight: false },
-];
-
-const nextAppointments = [
-  {
-    id: 1,
-    label: "Hoje",
-    title: "Aula de Estatística",
-    location: "Sala 302, Bloco C",
-    time: "14:00 - 16:00",
-  },
-  {
-    id: 2,
-    label: "Amanhã",
-    title: "Laboratório de IA",
-    location: "Lab 04, Térreo",
-    time: "09:00 - 11:00",
-  },
-  {
-    id: 3,
-    label: "Quinta-feira",
-    title: "Reunião de Orientação",
-    location: "Sala de Reuniões 1",
-    time: "16:30 - 17:30",
-  },
-];
+import { useAuth } from "../context/AuthContext";
+import { Reservation, getMyReservations, Laboratory, getLaboratories } from "../lib/api";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [laboratories, setLaboratories] = useState<Laboratory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+      return;
+    }
+
+    if (user) {
+      Promise.all([getMyReservations(), getLaboratories()])
+        .then(([res, labs]) => {
+          setReservations(res);
+          setLaboratories(labs);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [user, isLoading, router]);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  // Calculate stats
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthReservations = reservations.filter(
+    (r) => new Date(r.created_at) >= startOfMonth
+  );
+
+  const hoursUsed = reservations
+    .filter((r) => r.status === "approved")
+    .reduce((acc, r) => {
+      const start = new Date(r.start_time);
+      const end = new Date(r.end_time);
+      return acc + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    }, 0);
+
+  // Get next approved reservations
+  const upcomingReservations = reservations
+    .filter((r) => r.status === "approved" && new Date(r.start_time) > now)
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    .slice(0, 3);
+
+  // Get lab name helper
+  const getLabName = (labId: number) => {
+    const lab = laboratories.find((l) => l.id === labId);
+    return lab?.name || "Laboratório";
+  };
+
+  // Format reservation time label
+  const getTimeLabel = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) return "Hoje";
+    if (date.toDateString() === tomorrow.toDateString()) return "Amanhã";
+
+    return date.toLocaleDateString("pt-BR", { weekday: "long" });
+  };
+
+  // Format time range
+  const formatTimeRange = (start: string, end: string): string => {
+    const s = new Date(start);
+    const e = new Date(end);
+    return `${s.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} - ${e.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  };
+
+  // Get current date
+  const currentDate = now.toLocaleDateString("pt-BR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  // Weekly days
+  const weeklyDays = [];
+  const dayOfWeek = now.getDay();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - dayOfWeek + 1); // Monday
+
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    const dayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const hasEvent = reservations.some((r) => {
+      const rd = new Date(r.start_time);
+      return rd.toDateString() === d.toDateString();
+    });
+    weeklyDays.push({
+      label: dayLabels[d.getDay()],
+      day: d.getDate().toString(),
+      hasEvent,
+      highlight: d.toDateString() === now.toDateString(),
+    });
+  }
+
+  if (isLoading || loading) {
+    return (
+      <div className="min-h-screen bg-[#B3D4FC] flex items-center justify-center">
+        <div className="text-xl font-bold text-gray-700">Carregando...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#B3D4FC]">
       <header className="bg-white shadow-sm">
@@ -65,13 +150,13 @@ export default function HomePage() {
               Nova reserva
             </Link>
           </nav>
-          <Link
-            href="/login"
+          <button
+            onClick={handleLogout}
             className="flex items-center gap-2 text-gray-600 hover:text-black"
           >
             <LogOut className="h-5 w-5" />
             Sair
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -79,7 +164,7 @@ export default function HomePage() {
         <section className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
             <h1 className="text-3xl font-extrabold tracking-tight text-black md:text-4xl">
-              Olá, Professor(a)
+              Olá, {user?.role === "professor" ? "Professor(a)" : user?.role === "admin" ? "Admin" : "Aluno(a)"}
             </h1>
             <p className="text-sm font-medium text-gray-700">
               Aqui está o resumo dos seus compromissos desta semana.
@@ -87,7 +172,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow">
             <Clock className="h-4 w-4 text-[#0056D2]" />
-            <span>24 de Outubro, 2025</span>
+            <span>{currentDate}</span>
           </div>
         </section>
 
@@ -104,9 +189,9 @@ export default function HomePage() {
               </div>
               <Users className="h-5 w-5 text-gray-400" />
             </div>
-            <p className="text-3xl font-extrabold text-black">12</p>
-            <p className="text-xs font-semibold text-emerald-600">
-              +2 esta semana
+            <p className="text-3xl font-extrabold text-black">{monthReservations.length}</p>
+            <p className="text-xs font-semibold text-gray-600">
+              Total de reservas criadas este mês
             </p>
           </div>
 
@@ -121,7 +206,7 @@ export default function HomePage() {
                 </span>
               </div>
             </div>
-            <p className="text-3xl font-extrabold text-black">24h</p>
+            <p className="text-3xl font-extrabold text-black">{Math.round(hoursUsed)}h</p>
             <p className="text-xs font-medium text-gray-600">
               Ciclo mensal atual
             </p>
@@ -134,12 +219,18 @@ export default function HomePage() {
                   <Calendar className="h-5 w-5" />
                 </div>
                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-                  Próxima aula
+                  Próxima reserva
                 </span>
               </div>
             </div>
-            <p className="text-3xl font-extrabold text-black">Sala 302</p>
-            <p className="text-xs font-bold text-[#FF9F68]">Em 2 horas</p>
+            <p className="text-3xl font-extrabold text-black">
+              {upcomingReservations[0] ? getLabName(upcomingReservations[0].laboratory_id) : "Nenhuma"}
+            </p>
+            <p className="text-xs font-bold text-[#FF9F68]">
+              {upcomingReservations[0]
+                ? getTimeLabel(upcomingReservations[0].start_time)
+                : "Faça uma reserva"}
+            </p>
           </div>
         </section>
 
@@ -211,21 +302,19 @@ export default function HomePage() {
                 <div className="flex min-w-[480px] justify-between">
                   {weeklyDays.map((day) => (
                     <div
-                      key={day.label}
-                      className={`flex min-w-[72px] flex-col items-center gap-2 rounded-xl p-2 ${
-                        day.highlight
+                      key={day.label + day.day}
+                      className={`flex min-w-[72px] flex-col items-center gap-2 rounded-xl p-2 ${day.highlight
                           ? "bg-[#E3F2FD] text-[#0056D2]"
                           : "text-gray-700"
-                      }`}
+                        }`}
                     >
                       <span className="text-[11px] font-semibold uppercase tracking-wide">
                         {day.label}
                       </span>
                       <span className="text-lg font-bold">{day.day}</span>
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          day.hasEvent ? "bg-[#0056D2]" : "bg-gray-300"
-                        }`}
+                        className={`h-1.5 w-1.5 rounded-full ${day.hasEvent ? "bg-[#0056D2]" : "bg-gray-300"
+                          }`}
                       />
                     </div>
                   ))}
@@ -238,29 +327,35 @@ export default function HomePage() {
             <h2 className="text-xl font-bold text-black">Próximos horários</h2>
             <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-white p-2 shadow-md">
               <div className="flex-1 overflow-y-auto">
-                {nextAppointments.map((item) => (
-                  <div
-                    key={item.id}
-                    className="group rounded-xl border-b border-gray-100 p-4 last:border-b-0 hover:bg-gray-50"
-                  >
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="rounded-full bg-[#FFF3E0] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#FF9F68]">
-                        {item.label}
-                      </span>
-                    </div>
-                    <h3 className="mb-1 text-lg font-bold text-black">
-                      {item.title}
-                    </h3>
-                    <p className="mb-3 flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="h-4 w-4" />
-                      {item.location}
-                    </p>
-                    <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
-                      <Clock className="h-3 w-3" />
-                      {item.time}
-                    </div>
+                {upcomingReservations.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    Nenhuma reserva futura
                   </div>
-                ))}
+                ) : (
+                  upcomingReservations.map((item) => (
+                    <div
+                      key={item.id}
+                      className="group rounded-xl border-b border-gray-100 p-4 last:border-b-0 hover:bg-gray-50"
+                    >
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="rounded-full bg-[#FFF3E0] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#FF9F68]">
+                          {getTimeLabel(item.start_time)}
+                        </span>
+                      </div>
+                      <h3 className="mb-1 text-lg font-bold text-black">
+                        {item.title}
+                      </h3>
+                      <p className="mb-3 flex items-center gap-2 text-sm text-gray-600">
+                        <MapPin className="h-4 w-4" />
+                        {getLabName(item.laboratory_id)}
+                      </p>
+                      <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
+                        <Clock className="h-3 w-3" />
+                        {formatTimeRange(item.start_time, item.end_time)}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
               <Link
                 href="/minhas-reservas"

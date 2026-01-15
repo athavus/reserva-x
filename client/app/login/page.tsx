@@ -4,11 +4,11 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Calendar, Lock, User, UserPlus, LogIn } from "lucide-react";
-
-const API_BASE_URL = "http://localhost:8000";
+import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,38 +23,23 @@ export default function LoginPage() {
       return;
     }
 
-    if (email === "admin@reservax.com" && password === "admin123") {
-      router.push("/admin-dashboard");
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/`);
+      const user = await login(email, password);
 
-      if (!response.ok) {
-        setError("Não foi possível validar o usuário.");
-        return;
+      // Redirect based on user role
+      if (user.role === "admin") {
+        router.push("/admin-dashboard");
+      } else {
+        router.push("/home");
       }
-
-      const users = await response.json();
-      const normalizedEmail = email.trim().toLowerCase();
-
-      const user = users.find(
-        (item: { email: string; hashed_password: string }) =>
-          item.email.toLowerCase() === normalizedEmail &&
-          item.hashed_password === password,
-      );
-
-      if (!user) {
-        setError("Usuário ou senha inválidos.");
-        return;
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Erro ao conectar com o servidor. Tente novamente.");
       }
-
-      router.push("/home");
-    } catch {
-      setError("Erro ao conectar com o servidor. Tente novamente.");
     } finally {
       setLoading(false);
     }

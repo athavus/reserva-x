@@ -42,6 +42,16 @@ def seed_database():
         )
         session.add(admin)
         
+        # Admin RESERVAX (para o frontend)
+        admin_reservax = User(
+            email="admin@reservax.com",
+            hashed_password=hash_password("admin123"),
+            role=Role.admin,
+            project_name="RESERVAX Admin",
+            is_active=True
+        )
+        session.add(admin_reservax)
+        
         professor1 = User(
             email="prof.silva@embedded.com",
             hashed_password=hash_password("prof123"),
@@ -88,7 +98,7 @@ def seed_database():
         session.add(aluno3)
         
         session.commit()
-        print(f"✅ Criados 6 usuários (1 admin, 2 professores, 3 alunos)")
+        print(f"✅ Criados 7 usuários (2 admin, 2 professores, 3 alunos)")
         
         print("\n🏢 Criando laboratórios...")
         

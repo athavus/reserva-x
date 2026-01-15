@@ -169,7 +169,13 @@ async def create_reservation(
     
     # Validações de tempo
     now = datetime.now(timezone.utc)
-    if reservation.start_time < now:
+    
+    # Garantir que start_time e end_time sejam aware para comparação
+    if reservation.start_time.tzinfo is None:
+        reservation.start_time = reservation.start_time.replace(tzinfo=timezone.utc)
+    
+    # Permite uma pequena margem (5 min) para evitar erros por diferença de relógio
+    if reservation.start_time < (now - timedelta(minutes=5)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Não é possível criar reserva no passado"
@@ -337,7 +343,11 @@ async def update_reservation(
     
     # RNF03: Não pode editar 30 minutos antes do horário
     now = datetime.now(timezone.utc)
-    time_until_start = (db_reservation.start_time - now).total_seconds() / 60
+    start_time = db_reservation.start_time
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=timezone.utc)
+        
+    time_until_start = (start_time - now).total_seconds() / 60
     if time_until_start < 30:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -351,8 +361,14 @@ async def update_reservation(
     new_start = update_data.get("start_time", db_reservation.start_time)
     new_end = update_data.get("end_time", db_reservation.end_time)
     
+    # Garantir que sejam aware para comparação
+    if new_start.tzinfo is None:
+        new_start = new_start.replace(tzinfo=timezone.utc)
+    if new_end.tzinfo is None:
+        new_end = new_end.replace(tzinfo=timezone.utc)
+        
     if "start_time" in update_data or "end_time" in update_data:
-        if new_start < now:
+        if new_start < (now - timedelta(minutes=5)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Não é possível alterar para horário no passado"
@@ -421,14 +437,21 @@ async def delete_reservation(
     
     # RNF03: Não pode cancelar 30 minutos antes do horário
     now = datetime.now(timezone.utc)
-    time_until_start = (db_reservation.start_time - now).total_seconds() / 60
+    start_time = db_reservation.start_time
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=timezone.utc)
+        
+    time_until_start = (start_time - now).total_seconds() / 60
     if time_until_start < 30:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Não é possível cancelar reserva com menos de 30 minutos antes do horário"
         )
     
-    session.delete(db_reservation)
+    db_reservation.status = ReservationStatus.cancelled
+    db_reservation.updated_at = datetime.now(timezone.utc)
+    
+    session.add(db_reservation)
     session.commit()
     
     return None

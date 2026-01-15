@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Calendar,
   Clock,
@@ -9,8 +13,97 @@ import {
   PlusCircle,
   EyeOff,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { createReservation, getLaboratories, Laboratory } from "../lib/api";
+import { useEffect } from "react";
 
 export default function CriarAtividadePage() {
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
+  const [laboratories, setLaboratories] = useState<Laboratory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  // Form state
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [duration, setDuration] = useState(60);
+  const [isConfidential, setIsConfidential] = useState(false);
+  const [selectedLab, setSelectedLab] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+      return;
+    }
+
+    if (user) {
+      getLaboratories()
+        .then((labs) => {
+          setLaboratories(labs);
+          if (labs.length > 0) setSelectedLab(labs[0].id);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [user, isLoading, router]);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  const handleSubmit = async () => {
+    if (!title || !date || !selectedLab) {
+      setError("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    // Calculate start and end times using local date components to avoid timezone shifts
+    const [y, m, d] = date.split("-").map(Number);
+    const [h, min] = startTime.split(":").map(Number);
+    const startDateTime = new Date(y, m - 1, d, h, min, 0);
+
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + duration);
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      await createReservation({
+        laboratory_id: selectedLab,
+        reservation_type: "room",
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        title,
+        description: description || undefined,
+        is_confidential: isConfidential,
+      });
+
+      setSuccess(true);
+      setTimeout(() => {
+        router.push("/minhas-reservas");
+      }, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao criar atividade");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (isLoading || loading) {
+    return (
+      <div className="min-h-screen bg-[#B3D4FC] flex items-center justify-center">
+        <div className="text-xl font-bold text-gray-700">Carregando...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#B3D4FC]">
       <header className="bg-white shadow-sm">
@@ -33,13 +126,13 @@ export default function CriarAtividadePage() {
               Nova atividade
             </Link>
           </nav>
-          <Link
-            href="/login"
+          <button
+            onClick={handleLogout}
             className="flex items-center gap-2 text-gray-600 hover:text-black"
           >
             <LogOut className="h-5 w-5" />
             Sair
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -50,8 +143,7 @@ export default function CriarAtividadePage() {
               Nova atividade
             </h1>
             <p className="max-w-xl text-sm text-gray-700">
-              Preencha os campos abaixo para registrar uma nova atividade
-              vinculada à sua reserva.
+              Preencha os campos abaixo para criar uma reserva com detalhes de atividade.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -61,11 +153,20 @@ export default function CriarAtividadePage() {
             >
               Cancelar
             </Link>
-            <button className="rounded-lg bg-[#0056D2] px-4 py-2 text-sm font-bold text-white shadow hover:bg-blue-700">
-              Salvar rascunho
-            </button>
           </div>
         </section>
+
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-700 border border-red-200">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 rounded-lg bg-green-50 p-4 text-green-700 border border-green-200">
+            Atividade criada com sucesso! Redirecionando...
+          </div>
+        )}
 
         <section className="rounded-2xl bg-white p-6 shadow-md">
           <div className="space-y-6">
@@ -77,6 +178,8 @@ export default function CriarAtividadePage() {
                 </div>
                 <input
                   type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex.: Aula de revisão para prova"
                   className="h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm text-gray-800 shadow-sm placeholder:text-gray-400 focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
                 />
@@ -90,9 +193,29 @@ export default function CriarAtividadePage() {
               </div>
               <textarea
                 rows={4}
-                placeholder="Adicione detalhes, pauta e orientações importantes para os participantes..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Adicione detalhes, pauta e orientações importantes..."
                 className="w-full resize-y rounded-lg border border-blue-200 bg-white p-3 text-sm text-gray-800 shadow-sm placeholder:text-gray-400 focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
               />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                <Calendar className="h-4 w-4 text-[#0056D2]" />
+                <span>Laboratório</span>
+              </div>
+              <select
+                value={selectedLab || ""}
+                onChange={(e) => setSelectedLab(Number(e.target.value))}
+                className="h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm text-gray-800 shadow-sm focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
+              >
+                {laboratories.map((lab) => (
+                  <option key={lab.id} value={lab.id}>
+                    {lab.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -103,6 +226,9 @@ export default function CriarAtividadePage() {
                 </div>
                 <input
                   type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
                   className="h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm text-gray-800 shadow-sm focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
                 />
               </div>
@@ -111,22 +237,31 @@ export default function CriarAtividadePage() {
                   <Clock className="h-4 w-4 text-[#0056D2]" />
                   <span>Hora de início</span>
                 </div>
-                <input
-                  type="time"
+                <select
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
                   className="h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm text-gray-800 shadow-sm focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
-                />
+                >
+                  {["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"].map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
                   <Clock className="h-4 w-4 text-[#0056D2]" />
                   <span>Duração</span>
                 </div>
-                <select className="h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm text-gray-800 shadow-sm focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]">
-                  <option>30 minutos</option>
-                  <option>45 minutos</option>
-                  <option>1 hora</option>
-                  <option>1 hora e 30 minutos</option>
-                  <option>2 horas</option>
+                <select
+                  value={duration}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  className="h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm text-gray-800 shadow-sm focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
+                >
+                  <option value={30}>30 minutos</option>
+                  <option value={45}>45 minutos</option>
+                  <option value={60}>1 hora</option>
+                  <option value={90}>1 hora e 30 minutos</option>
+                  <option value={120}>2 horas</option>
                 </select>
               </div>
             </div>
@@ -141,7 +276,8 @@ export default function CriarAtividadePage() {
                   <input
                     type="radio"
                     name="visibilidade"
-                    defaultChecked
+                    checked={!isConfidential}
+                    onChange={() => setIsConfidential(false)}
                     className="peer sr-only"
                   />
                   <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-white p-4 shadow-sm transition peer-checked:border-[#0056D2] peer-checked:ring-1 peer-checked:ring-[#0056D2]">
@@ -153,7 +289,7 @@ export default function CriarAtividadePage() {
                         Não confidencial
                       </p>
                       <p className="text-xs text-gray-600">
-                        Visível para os participantes da turma e administradores.
+                        Visível para todos os usuários.
                       </p>
                     </div>
                   </div>
@@ -163,6 +299,8 @@ export default function CriarAtividadePage() {
                   <input
                     type="radio"
                     name="visibilidade"
+                    checked={isConfidential}
+                    onChange={() => setIsConfidential(true)}
                     className="peer sr-only"
                   />
                   <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-white p-4 shadow-sm transition peer-checked:border-[#0056D2] peer-checked:ring-1 peer-checked:ring-[#0056D2]">
@@ -174,7 +312,7 @@ export default function CriarAtividadePage() {
                         Confidencial
                       </p>
                       <p className="text-xs text-gray-600">
-                        Visível apenas para você e administradores do sistema.
+                        Visível apenas para você e administradores.
                       </p>
                     </div>
                   </div>
@@ -183,19 +321,19 @@ export default function CriarAtividadePage() {
             </div>
 
             <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
-              <p className="text-xs text-gray-600 sm:mr-auto">
-                Todos os campos são apenas ilustrativos. Nenhuma informação é
-                enviada para o servidor.
-              </p>
               <Link
                 href="/home"
                 className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-100"
               >
                 Cancelar
               </Link>
-              <button className="flex items-center justify-center gap-2 rounded-lg bg-[#0056D2] px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700">
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="flex items-center justify-center gap-2 rounded-lg bg-[#0056D2] px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <PlusCircle className="h-4 w-4" />
-                Criar atividade
+                {submitting ? "Criando..." : "Criar atividade"}
               </button>
             </div>
           </div>
@@ -204,4 +342,3 @@ export default function CriarAtividadePage() {
     </div>
   );
 }
-

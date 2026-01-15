@@ -14,6 +14,7 @@ class ReservationStatus(str, Enum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
+    cancelled = "cancelled"
 
 
 class ReservationType(str, Enum):
@@ -203,6 +204,57 @@ class UserLaboratoryAccess(SQLModel, table=True):
     granted_by: int = Field(
         foreign_key="user.id",
         description="ID do administrador que concedeu o acesso"
+    )
+
+
+class AccessRequest(SQLModel, table=True):
+    """Solicitação de acesso a laboratório"""
+    model_config = {
+        "title": "Solicitação de Acesso",
+        "description": "Solicitação de um usuário para ter acesso a um laboratório"
+    }
+    
+    id: Optional[int] = Field(
+        default=None,
+        primary_key=True,
+        description="Identificador único"
+    )
+    user_id: int = Field(
+        foreign_key="user.id",
+        index=True,
+        description="ID do usuário solicitante"
+    )
+    laboratory_id: int = Field(
+        foreign_key="laboratory.id",
+        index=True,
+        description="ID do laboratório solicitado"
+    )
+    reason: Optional[str] = Field(
+        default=None,
+        max_length=500,
+        description="Justificativa para o acesso"
+    )
+    is_processed: bool = Field(
+        default=False,
+        index=True,
+        description="Se a solicitação já foi processada"
+    )
+    is_approved: bool = Field(
+        default=False,
+        description="Se a solicitação foi aprovada"
+    )
+    submitted_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Data da solicitação"
+    )
+    processed_at: Optional[datetime] = Field(
+        default=None,
+        description="Data do processamento"
+    )
+    processed_by: Optional[int] = Field(
+        default=None,
+        foreign_key="user.id",
+        description="Admin que processou"
     )
 
 

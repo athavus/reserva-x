@@ -1,261 +1,222 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, User as UserIcon, Check, X, CheckCircle, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Calendar, LogOut, Check, X, Clock, Mail, Building } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import {
+  RegistrationRequest,
+  getRegistrationRequests,
+  approveRegistrationRequest,
+  rejectRegistrationRequest
+} from "../lib/api";
 
-type UserStatus = "Aprovado" | "Reprovado" | "Pendente";
+export default function AdminPage() {
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
+  const [requests, setRequests] = useState<RegistrationRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-interface UserRequest {
-  id: number;
-  name: string;
-  email: string;
-  role: "Professor" | "Estudante" | "Administrador";
-  date: string;
-  time: string;
-  status: UserStatus;
-}
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+      return;
+    }
 
-const initialUsers: UserRequest[] = [
-  {
-    id: 1,
-    name: "Maria José",
-    email: "mariajose@ee.exemplo.com",
-    role: "Professor",
-    date: "12 Out, 2025",
-    time: "13:00",
-    status: "Aprovado",
-  },
-  {
-    id: 2,
-    name: "Fulano de Tal",
-    email: "fulanodetal@ee.exemplo.com",
-    role: "Estudante",
-    date: "13 Out, 2025",
-    time: "14:00",
-    status: "Reprovado",
-  },
-  {
-    id: 3,
-    name: "Gustavo Vilar",
-    email: "gustavovilar@ee.exemplo.com",
-    role: "Professor",
-    date: "14 Out, 2025",
-    time: "15:00",
-    status: "Aprovado",
-  },
-  {
-    id: 4,
-    name: "Miguel Ryan",
-    email: "miguelryan@ee.exemplo.com",
-    role: "Administrador",
-    date: "15 Out, 2025",
-    time: "16:00",
-    status: "Pendente",
-  },
-  {
-    id: 5,
-    name: "Denilson de Tal",
-    email: "denilsondetal@ee.exemplo.com",
-    role: "Administrador",
-    date: "16 Out, 2025",
-    time: "17:00",
-    status: "Pendente",
-  },
-];
+    if (!isLoading && user && user.role !== "admin") {
+      router.push("/home");
+      return;
+    }
 
-export default function AdminDashboard() {
-  const [users, setUsers] = useState<UserRequest[]>(initialUsers);
+    if (user && user.role === "admin") {
+      getRegistrationRequests()
+        .then(setRequests)
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+    }
+  }, [user, isLoading, router]);
 
-  const handleApprove = (id: number) => {
-    setUsers(users.map(user => 
-      user.id === id ? { ...user, status: "Aprovado" } : user
-    ));
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
   };
 
-  const handleReject = (id: number) => {
-    setUsers(users.map(user => 
-      user.id === id ? { ...user, status: "Reprovado" } : user
-    ));
+  const handleApprove = async (id: number, role: "aluno" | "professor") => {
+    setProcessingId(id);
+    setError(null);
+
+    try {
+      await approveRegistrationRequest(id, role);
+      setRequests(requests.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao aprovar");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const pendingCount = users.filter(u => u.status === "Pendente").length;
-  const approvedCount = users.filter(u => u.status === "Aprovado").length;
-  const rejectedCount = users.filter(u => u.status === "Reprovado").length;
+  const handleReject = async (id: number) => {
+    setProcessingId(id);
+    setError(null);
+
+    try {
+      await rejectRegistrationRequest(id);
+      setRequests(requests.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao rejeitar");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("pt-BR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  if (isLoading || loading) {
+    return (
+      <div className="min-h-screen bg-[#B3D4FC] flex items-center justify-center">
+        <div className="text-xl font-bold text-gray-700">Carregando...</div>
+      </div>
+    );
+  }
+
+  const pendingRequests = requests.filter((r) => !r.is_processed);
 
   return (
-    <div className="min-h-screen bg-[#B3D4FC] font-sans">
-      {/* Navbar */}
-      <nav className="flex items-center justify-end gap-6 bg-[#8FB9EE] px-8 py-4 shadow-sm">
-        <Link href="#" className="font-bold text-gray-800 hover:text-black">
-          Agendamentos
-        </Link>
-        <Link href="#" className="font-bold text-gray-800 hover:text-black">
-          Configurações
-        </Link>
-        <div className="flex items-center gap-4 border-l border-gray-400 pl-4">
-          <button className="rounded-full p-2 hover:bg-blue-300">
-            <Bell className="h-6 w-6 text-black" />
+    <div className="min-h-screen bg-[#B3D4FC]">
+      <header className="bg-white shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-8 w-8 text-[#0056D2]" />
+            <span className="text-xl font-bold text-black">RESERVAX</span>
+          </div>
+          <nav className="hidden items-center gap-6 text-sm font-bold text-gray-700 md:flex">
+            <Link href="/admin-dashboard" className="hover:text-black">
+              Dashboard
+            </Link>
+            <Link
+              href="/admin"
+              className="text-[#0056D2] underline-offset-4 hover:underline"
+            >
+              Cadastros
+            </Link>
+            <Link href="/admin/reservas" className="hover:text-black">
+              Reservas
+            </Link>
+            <Link href="/admin/acessos" className="hover:text-black">
+              Acessos
+            </Link>
+          </nav>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-gray-600 hover:text-black"
+          >
+            <LogOut className="h-5 w-5" />
+            Sair
           </button>
-          <button className="rounded-full p-2 hover:bg-blue-300">
-            <UserIcon className="h-8 w-8 text-black" />
-          </button>
         </div>
-      </nav>
+      </header>
 
-      <main className="mx-auto max-w-7xl p-8">
-        {/* Header */}
-        <div className="mb-10">
-          <h1 className="mb-2 text-4xl font-extrabold text-black">
-            Solicitações de Cadastro
-          </h1>
-          <p className="text-lg font-medium text-gray-600">
-            Gerencie e analise os pedidos de novos usuários pendentes
-          </p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {/* Pendentes */}
-          <div className="flex flex-col justify-between rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <span className="text-lg font-bold text-gray-700">Pendentes</span>
-              <div className="h-6 w-6 rounded-full bg-yellow-200"></div>
-            </div>
-            <span className="mt-4 text-4xl font-extrabold text-black">
-              {pendingCount}+
-            </span>
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-extrabold leading-tight text-black md:text-4xl">
+              Solicitações de cadastro
+            </h1>
+            <p className="mt-2 text-gray-700">
+              Gerencie as solicitações de novos usuários do sistema.
+            </p>
           </div>
-
-          {/* Aprovados */}
-          <div className="flex flex-col justify-between rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <span className="text-lg font-bold text-gray-700">Aprovados</span>
-              <CheckCircle className="h-6 w-6 text-green-500" />
-            </div>
-            <span className="mt-4 text-4xl font-extrabold text-black">
-              {approvedCount}+
-            </span>
-          </div>
-
-          {/* Reprovados */}
-          <div className="flex flex-col justify-between rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <span className="text-lg font-bold text-gray-700">Reprovados</span>
-              <XCircle className="h-6 w-6 text-red-400" />
-            </div>
-            <span className="mt-4 text-4xl font-extrabold text-black">
-              {rejectedCount}
-            </span>
+          <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow">
+            <Clock className="h-4 w-4 text-[#0056D2]" />
+            <span>{pendingRequests.length} pendente(s)</span>
           </div>
         </div>
 
-        {/* Table Section */}
-        <div className="rounded-3xl bg-white p-8 shadow-lg">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
-              <thead>
-                <tr className="border-b border-gray-100 text-left">
-                  <th className="pb-4 pl-4">
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </th>
-                  <th className="pb-4 text-sm font-bold uppercase text-gray-500">
-                    Usuário
-                  </th>
-                  <th className="pb-4 text-sm font-bold uppercase text-gray-500">
-                    Perfil Solicitado
-                  </th>
-                  <th className="pb-4 text-sm font-bold uppercase text-gray-500">
-                    Data
-                  </th>
-                  <th className="pb-4 text-sm font-bold uppercase text-gray-500">
-                    Status
-                  </th>
-                  <th className="pb-4 text-sm font-bold uppercase text-gray-500">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {users.map((user) => (
-                  <tr key={user.id} className="group hover:bg-gray-50">
-                    <td className="py-4 pl-4">
-                      <input
-                        type="checkbox"
-                        className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black">
-                          <UserIcon className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-black">{user.name}</p>
-                          <p className="text-xs text-gray-500">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <span
-                        className={`rounded-md px-3 py-1 text-xs font-bold ${
-                          user.role === "Professor"
-                            ? "bg-blue-100 text-blue-700"
-                            : user.role === "Estudante"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-gray-200 text-gray-700"
-                        }`}
-                      >
-                        {user.role}
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-700 border border-red-200">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {pendingRequests.length === 0 ? (
+            <div className="rounded-2xl bg-white p-8 text-center text-gray-500 shadow-md">
+              Nenhuma solicitação de cadastro pendente.
+            </div>
+          ) : (
+            pendingRequests.map((request) => (
+              <div
+                key={request.id}
+                className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-blue-100 md:flex-row"
+              >
+                <div className="flex flex-1 flex-col justify-between gap-4 p-5">
+                  <div>
+                    <div className="mb-2 flex items-center gap-3">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
+                        <span className="h-2 w-2 rounded-full bg-current" />
+                        Aguardando aprovação
                       </span>
-                    </td>
-                    <td className="py-4">
-                      <div>
-                        <p className="font-bold text-gray-700">{user.date}</p>
-                        <p className="text-xs text-gray-500">{user.time}</p>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <span
-                        className={`rounded-md px-3 py-1 text-xs font-bold ${
-                          user.status === "Aprovado"
-                            ? "bg-green-100 text-green-700"
-                            : user.status === "Reprovado"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {user.status}
+                      <span className="text-xs text-gray-500">
+                        ID #{request.id}
                       </span>
-                    </td>
-                    <td className="py-4">
-                      {user.status === "Pendente" && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApprove(user.id)}
-                            className="flex h-8 w-8 items-center justify-center rounded bg-green-400 text-white hover:bg-green-500 transition-colors"
-                            title="Aprovar"
-                          >
-                            <Check className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleReject(user.id)}
-                            className="flex h-8 w-8 items-center justify-center rounded bg-red-400 text-white hover:bg-red-500 transition-colors"
-                            title="Reprovar"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Mail className="h-4 w-4 text-[#0056D2]" />
+                        <span className="font-medium">{request.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Building className="h-4 w-4 text-[#0056D2]" />
+                        <span>{request.project_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <Clock className="h-3 w-3" />
+                        <span>Solicitado em {formatDate(request.submitted_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 border-t border-gray-100 pt-4">
+                    <span className="text-sm text-gray-600">Aprovar como:</span>
+                    <button
+                      onClick={() => handleApprove(request.id, "aluno")}
+                      disabled={processingId === request.id}
+                      className="inline-flex items-center gap-2 rounded-lg bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50"
+                    >
+                      <Check className="h-4 w-4" />
+                      Aluno
+                    </button>
+                    <button
+                      onClick={() => handleApprove(request.id, "professor")}
+                      disabled={processingId === request.id}
+                      className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                    >
+                      <Check className="h-4 w-4" />
+                      Professor
+                    </button>
+                    <button
+                      onClick={() => handleReject(request.id)}
+                      disabled={processingId === request.id}
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      <X className="h-4 w-4" />
+                      Rejeitar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </main>
     </div>

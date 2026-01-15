@@ -154,6 +154,34 @@ class UserLaboratoryAccessResponse(BaseModel):
         from_attributes = True
 
 
+class AccessRequestCreate(BaseModel):
+    """Schema para criar uma solicitação de acesso"""
+    laboratory_id: int = Field(description="ID do laboratório solicitado")
+    reason: Optional[str] = Field(None, max_length=500, description="Justificativa")
+
+
+class AccessRequestResponse(BaseModel):
+    """Schema para resposta de solicitação de acesso"""
+    id: int
+    user_id: int
+    laboratory_id: int
+    reason: Optional[str]
+    is_processed: bool
+    is_approved: bool
+    submitted_at: datetime
+    processed_at: Optional[datetime]
+    processed_by: Optional[int]
+    
+    class Config:
+        from_attributes = True
+
+
+class AccessRequestProcess(BaseModel):
+    """Schema para processar (aprovar/rejeitar) solicitação de acesso"""
+    approved: bool
+
+
+
 # ==================== RESERVATION SCHEMAS ====================
 
 class ReservationCreate(BaseModel):

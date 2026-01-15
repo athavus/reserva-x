@@ -1,39 +1,100 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Calendar, LogOut, MapPin, Users } from "lucide-react";
-
-interface Room {
-  id: string;
-  name: string;
-  capacity: string;
-  location: string;
-  features: string[];
-}
-
-const rooms: Room[] = [
-  {
-    id: "SALA-01",
-    name: "Sala de Reunião Principal",
-    capacity: "Até 12 pessoas",
-    location: "Térreo, Bloco A",
-    features: ["TV", "Videochamada", "Quadro branco"],
-  },
-  {
-    id: "SALA-02",
-    name: "Sala Colaborativa",
-    capacity: "Até 8 pessoas",
-    location: "1º Andar, Bloco B",
-    features: ["Monitor", "Wi-Fi", "Ar-condicionado"],
-  },
-  {
-    id: "AUD-01",
-    name: "Auditório Principal",
-    capacity: "Até 60 pessoas",
-    location: "2º Andar, Bloco C",
-    features: ["Projetor", "Som", "Microfone"],
-  },
-];
+import { useAuth } from "../context/AuthContext";
+import {
+  Laboratory,
+  getLaboratories,
+  createReservation
+} from "../lib/api";
 
 export default function NovaReservaSalaPage() {
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
+  const [laboratories, setLaboratories] = useState<Laboratory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submittingLabId, setSubmittingLabId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  // Form state
+  const [date, setDate] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [duration, setDuration] = useState(60); // minutes
+  const [selectedLab, setSelectedLab] = useState<number | null>(null);
+  const [title, setTitle] = useState("");
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+      return;
+    }
+
+    if (user) {
+      getLaboratories()
+        .then(setLaboratories)
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [user, isLoading, router]);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  const handleReserve = async (labId: number) => {
+    if (!date) {
+      setError("Selecione uma data");
+      return;
+    }
+
+    const lab = laboratories.find((l) => l.id === labId);
+    const reservationTitle = title || `Reserva de ${lab?.name || "Sala"}`;
+
+    // Calculate start and end times
+    // Calculate start and end times using local date components to avoid timezone shifts
+    const [y, m, d] = date.split("-").map(Number);
+    const [h, min] = startTime.split(":").map(Number);
+    const startDateTime = new Date(y, m - 1, d, h, min, 0);
+
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + duration);
+
+    setSubmittingLabId(labId);
+    setError(null);
+
+    try {
+      await createReservation({
+        laboratory_id: labId,
+        reservation_type: "room",
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        title: reservationTitle,
+      });
+
+      setSuccess(true);
+      setTimeout(() => {
+        router.push("/minhas-reservas");
+      }, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao criar reserva");
+    } finally {
+      setSubmittingLabId(null);
+    }
+  };
+
+  if (isLoading || loading) {
+    return (
+      <div className="min-h-screen bg-[#B3D4FC] flex items-center justify-center">
+        <div className="text-xl font-bold text-gray-700">Carregando...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#B3D4FC]">
       <header className="bg-white shadow-sm">
@@ -56,13 +117,13 @@ export default function NovaReservaSalaPage() {
               Nova reserva
             </Link>
           </nav>
-          <Link
-            href="/login"
+          <button
+            onClick={handleLogout}
             className="flex items-center gap-2 text-gray-600 hover:text-black"
           >
             <LogOut className="h-5 w-5" />
             Sair
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -84,15 +145,29 @@ export default function NovaReservaSalaPage() {
               Escolha a data, horário e o espaço ideal para sua reunião.
             </p>
           </div>
-          <div className="flex gap-2 text-xs font-semibold">
-            <span className="rounded-full bg-white px-4 py-2 text-gray-700">
-              Lista
-            </span>
-            <span className="rounded-full px-4 py-2 text-gray-600">
-              Calendário
-            </span>
-          </div>
         </div>
+
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-700 border border-red-200">
+            <div className="flex items-center justify-between">
+              <span>{error}</span>
+              {(error.toLowerCase().includes("permissão") || error.toLowerCase().includes("negado")) && (
+                <Link
+                  href="/solicitar-acesso"
+                  className="ml-4 rounded-md bg-red-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-800 hover:bg-red-200"
+                >
+                  Solicitar acesso
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 rounded-lg bg-green-50 p-4 text-green-700 border border-green-200">
+            Reserva criada com sucesso! Redirecionando...
+          </div>
+        )}
 
         <div className="grid gap-8 lg:grid-cols-12">
           <section className="space-y-6 lg:col-span-4">
@@ -104,10 +179,25 @@ export default function NovaReservaSalaPage() {
               <div className="space-y-4 text-sm">
                 <div>
                   <label className="mb-1 block font-semibold text-gray-700">
+                    Título (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Ex: Reunião de equipe"
+                    className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-gray-900 outline-none ring-2 ring-transparent focus:border-[#1A73E8] focus:ring-[#1A73E8]/40"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block font-semibold text-gray-700">
                     Data
                   </label>
                   <input
                     type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
                     className="w-full rounded-lg border border-blue-200 bg-[#E3F2FD] px-3 py-2 text-gray-900 outline-none ring-2 ring-transparent focus:border-[#1A73E8] focus:ring-[#1A73E8]/40"
                   />
                 </div>
@@ -116,75 +206,30 @@ export default function NovaReservaSalaPage() {
                     <label className="mb-1 block font-semibold text-gray-700">
                       Início
                     </label>
-                    <select className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-gray-900 outline-none ring-2 ring-transparent focus:border-[#1A73E8] focus:ring-[#1A73E8]/40">
-                      <option>09:00</option>
-                      <option>09:30</option>
-                      <option>10:00</option>
-                      <option>10:30</option>
+                    <select
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-gray-900 outline-none ring-2 ring-transparent focus:border-[#1A73E8] focus:ring-[#1A73E8]/40"
+                    >
+                      {["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"].map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className="mb-1 block font-semibold text-gray-700">
                       Duração
                     </label>
-                    <select className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-gray-900 outline-none ring-2 ring-transparent focus:border-[#1A73E8] focus:ring-[#1A73E8]/40">
-                      <option>30 min</option>
-                      <option selected>1h</option>
-                      <option>1h 30min</option>
-                      <option>2h</option>
+                    <select
+                      value={duration}
+                      onChange={(e) => setDuration(Number(e.target.value))}
+                      className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-gray-900 outline-none ring-2 ring-transparent focus:border-[#1A73E8] focus:ring-[#1A73E8]/40"
+                    >
+                      <option value={30}>30 min</option>
+                      <option value={60}>1h</option>
+                      <option value={90}>1h 30min</option>
+                      <option value={120}>2h</option>
                     </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow-md ring-1 ring-blue-100">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                  Preferências
-                </h2>
-                <button className="text-xs font-semibold text-[#0056D2] hover:underline">
-                  Limpar
-                </button>
-              </div>
-              <div className="space-y-4 text-sm">
-                <div>
-                  <label className="mb-1 block font-semibold text-gray-700">
-                    Capacidade mínima
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={1}
-                      max={50}
-                      defaultValue={8}
-                      className="w-full accent-[#1A73E8]"
-                    />
-                    <span className="w-10 text-center text-sm font-bold text-gray-800">
-                      8
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1 block font-semibold text-gray-700">
-                    Tipo de sala
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-blue-200 text-[#1A73E8]"
-                      />
-                      Sala de reunião
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-blue-200 text-[#1A73E8]"
-                      />
-                      Auditório
-                    </label>
                   </div>
                 </div>
               </div>
@@ -196,59 +241,46 @@ export default function NovaReservaSalaPage() {
               <p>
                 Mostrando{" "}
                 <span className="font-bold text-black">
-                  {rooms.length} salas disponíveis
+                  {laboratories.length} laboratórios disponíveis
                 </span>
               </p>
-              <div className="flex items-center gap-2">
-                <span>Ordenar por:</span>
-                <select className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-[#1A73E8] focus:ring-2 focus:ring-[#1A73E8]/40">
-                  <option>Recomendadas</option>
-                  <option>Capacidade</option>
-                </select>
-              </div>
             </div>
 
             <div className="space-y-4">
-              {rooms.map((room) => (
+              {laboratories.map((lab) => (
                 <div
-                  key={room.id}
+                  key={lab.id}
                   className="flex flex-col justify-between gap-4 rounded-2xl bg-white p-5 shadow-md ring-1 ring-blue-100 md:flex-row"
                 >
                   <div className="flex flex-1 flex-col gap-2">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
                         <span className="rounded-full bg-[#E3F2FD] px-2 py-0.5 text-[#0056D2]">
-                          {room.id}
+                          LAB-{lab.id.toString().padStart(2, "0")}
                         </span>
-                        <span>{room.capacity}</span>
+                        <span>Até {lab.capacity} pessoas</span>
                       </div>
                     </div>
                     <h2 className="text-lg font-bold text-black">
-                      {room.name}
+                      {lab.name}
                     </h2>
                     <p className="mt-1 flex items-center gap-1 text-sm text-gray-600">
                       <MapPin className="h-4 w-4" />
-                      {room.location}
+                      {lab.description || "Laboratório disponível para reserva"}
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-gray-700">
-                      {room.features.map((feature) => (
-                        <span
-                          key={feature}
-                          className="rounded-full bg-[#E3F2FD] px-3 py-1"
-                        >
-                          {feature}
-                        </span>
-                      ))}
-                    </div>
                   </div>
 
                   <div className="flex items-end justify-between gap-4 md:flex-col md:items-end">
                     <div className="flex items-center gap-2 text-sm text-gray-700">
                       <Users className="h-4 w-4 text-[#0056D2]" />
-                      <span>Disponível no horário escolhido</span>
+                      <span>{lab.is_active ? "Disponível" : "Indisponível"}</span>
                     </div>
-                    <button className="rounded-lg bg-[#5BA4E5] px-5 py-2 text-sm font-bold text-black ring-2 ring-[#1A73E8] hover:bg-blue-400">
-                      Reservar
+                    <button
+                      onClick={() => handleReserve(lab.id)}
+                      disabled={submittingLabId !== null || !lab.is_active}
+                      className="rounded-lg bg-[#5BA4E5] px-5 py-2 text-sm font-bold text-black ring-2 ring-[#1A73E8] hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {submittingLabId === lab.id ? "Reservando..." : "Reservar"}
                     </button>
                   </div>
                 </div>
@@ -260,4 +292,3 @@ export default function NovaReservaSalaPage() {
     </div>
   );
 }
-

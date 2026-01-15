@@ -1,17 +1,134 @@
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Calendar,
   Clock,
-  CreditCard,
   Info,
   LogOut,
   MapPin,
   User,
   XCircle,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import {
+  Reservation,
+  Laboratory,
+  getReservation,
+  getLaboratories,
+  deleteReservation
+} from "../lib/api";
 
-export default function CancelarReservaPage() {
+function CancelarReservaContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const reservationId = searchParams.get("id");
+
+  const { user, isLoading, logout } = useAuth();
+  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [laboratories, setLaboratories] = useState<Laboratory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+      return;
+    }
+
+    if (!reservationId) {
+      router.push("/minhas-reservas");
+      return;
+    }
+
+    if (user) {
+      Promise.all([
+        getReservation(parseInt(reservationId)),
+        getLaboratories()
+      ])
+        .then(([res, labs]) => {
+          setReservation(res);
+          setLaboratories(labs);
+        })
+        .catch((err) => {
+          setError(err.message || "Reserva não encontrada");
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [user, isLoading, router, reservationId]);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  const getLabName = (labId: number) => {
+    const lab = laboratories.find((l) => l.id === labId);
+    return lab?.name || "Laboratório";
+  };
+
+  const handleCancel = async () => {
+    if (!reservation) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      await deleteReservation(reservation.id);
+      router.push("/minhas-reservas");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao cancelar reserva");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("pt-BR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const formatTimeRange = (start: string, end: string) => {
+    const s = new Date(start);
+    const e = new Date(end);
+    return `${s.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} - ${e.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "approved": return "Confirmada";
+      case "pending": return "Aguardando";
+      case "rejected": return "Cancelada";
+      case "cancelled": return "Cancelada";
+      default: return status;
+    }
+  };
+
+  if (isLoading || loading) {
+    return (
+      <div className="min-h-screen bg-[#B3D4FC] flex items-center justify-center">
+        <div className="text-xl font-bold text-gray-700">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!reservation) {
+    return (
+      <div className="min-h-screen bg-[#B3D4FC] flex items-center justify-center">
+        <div className="text-xl font-bold text-red-600">
+          {error || "Reserva não encontrada"}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#B3D4FC]">
       <header className="bg-white shadow-sm">
@@ -31,13 +148,13 @@ export default function CancelarReservaPage() {
               Minhas reservas
             </Link>
           </nav>
-          <Link
-            href="/login"
+          <button
+            onClick={handleLogout}
             className="flex items-center gap-2 text-gray-600 hover:text-black"
           >
             <LogOut className="h-5 w-5" />
             Sair
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -67,34 +184,40 @@ export default function CancelarReservaPage() {
           </div>
         </section>
 
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-700 border border-red-200">
+            {error}
+          </div>
+        )}
+
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-4">
             <div className="overflow-hidden rounded-2xl bg-white shadow-md">
               <div className="relative h-40 bg-gradient-to-tr from-[#0056D2] to-[#5BA4E5]">
                 <div className="absolute inset-0 opacity-20" />
                 <div className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#0056D2]">
-                  Confirmada
+                  {getStatusLabel(reservation.status)}
                 </div>
               </div>
               <div className="space-y-3 p-5">
                 <h2 className="text-lg font-bold text-black">
-                  Aula de Estatística
+                  {reservation.title}
                 </h2>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <User className="h-4 w-4 text-[#0056D2]" />
-                  <span>Prof. Carlos Silva</span>
+                  <span>Reserva #{reservation.id}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <Calendar className="h-4 w-4 text-[#0056D2]" />
-                  <span>24 de outubro, 2025</span>
+                  <span>{formatDate(reservation.start_time)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <Clock className="h-4 w-4 text-[#0056D2]" />
-                  <span>14:00 - 16:00</span>
+                  <span>{formatTimeRange(reservation.start_time, reservation.end_time)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <MapPin className="h-4 w-4 text-[#0056D2]" />
-                  <span>Sala 302, Bloco C</span>
+                  <span>{getLabName(reservation.laboratory_id)}</span>
                 </div>
               </div>
             </div>
@@ -102,11 +225,9 @@ export default function CancelarReservaPage() {
             <div className="flex items-start gap-3 rounded-2xl bg-[#FFF3E0] p-4 text-sm text-[#7C2D12] shadow-sm ring-1 ring-[#FFCC80]">
               <Info className="mt-0.5 h-5 w-5 shrink-0" />
               <div>
-                <p className="font-bold">Política de cancelamento</p>
+                <p className="font-bold">Atenção</p>
                 <p className="mt-1 text-xs text-[#7C2D12]">
-                  Cancelamentos são gratuitos até 24 horas antes do horário
-                  agendado. Após esse período, pode ser aplicada uma restrição
-                  de uso do sistema.
+                  Ao cancelar esta reserva, o horário ficará disponível para outros usuários.
                 </p>
               </div>
             </div>
@@ -120,103 +241,44 @@ export default function CancelarReservaPage() {
               <div className="grid grid-cols-1 gap-6 text-sm sm:grid-cols-2">
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Código da reserva
+                    ID da reserva
                   </p>
-                  <p className="font-medium text-gray-900">#RES-98234</p>
+                  <p className="font-medium text-gray-900">#RES-{reservation.id}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Data do pedido
+                    Data de criação
                   </p>
-                  <p className="font-medium text-gray-900">10/10/2025</p>
+                  <p className="font-medium text-gray-900">
+                    {new Date(reservation.created_at).toLocaleDateString("pt-BR")}
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Tipo de recurso
                   </p>
-                  <p className="font-medium text-gray-900">Sala de aula</p>
+                  <p className="font-medium text-gray-900">
+                    {reservation.reservation_type === "room" ? "Sala" : "Computador"}
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Responsável
+                    Local
                   </p>
                   <p className="font-medium text-gray-900">
-                    Coordenação de Matemática
+                    {getLabName(reservation.laboratory_id)}
                   </p>
                 </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Status de disponibilidade após cancelamento
-                  </p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="h-2 flex-1 rounded-full bg-gray-100">
-                      <div className="h-full w-full rounded-full bg-emerald-500" />
-                    </div>
-                    <span className="text-xs font-bold text-emerald-600">
-                      Horário liberado para outros usuários
-                    </span>
+                {reservation.description && (
+                  <div className="space-y-1 sm:col-span-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Descrição
+                    </p>
+                    <p className="font-medium text-gray-900">
+                      {reservation.description}
+                    </p>
                   </div>
-                </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Informações adicionais
-                  </p>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CreditCard className="h-4 w-4 text-gray-500" />
-                    <span className="text-xs">
-                      Esta reserva não possui cobrança financeira associada.
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white p-6 shadow-md">
-              <h2 className="mb-4 text-lg font-bold text-black">
-                Motivo do cancelamento
-              </h2>
-
-              <div className="space-y-4 text-sm">
-                <div className="space-y-2">
-                  <label
-                    htmlFor="motivo"
-                    className="text-sm font-medium text-gray-800"
-                  >
-                    Selecione um motivo (opcional)
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="motivo"
-                      className="h-11 w-full rounded-lg border border-blue-200 bg-white px-3 pr-8 text-sm text-gray-800 shadow-sm focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
-                      defaultValue=""
-                    >
-                      <option value="" disabled>
-                        Escolha uma opção...
-                      </option>
-                      <option value="schedule">Conflito de agenda</option>
-                      <option value="health">Problemas pessoais</option>
-                      <option value="mistake">
-                        Reserva feita por engano
-                      </option>
-                      <option value="other">Outro motivo</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label
-                    htmlFor="comentarios"
-                    className="text-sm font-medium text-gray-800"
-                  >
-                    Comentários adicionais
-                  </label>
-                  <textarea
-                    id="comentarios"
-                    rows={4}
-                    className="w-full resize-y rounded-lg border border-blue-200 bg-white p-3 text-sm text-gray-800 shadow-sm placeholder:text-gray-400 focus:border-[#0056D2] focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
-                    placeholder="Você pode adicionar detalhes para ajudar na gestão dos recursos..."
-                  />
-                </div>
+                )}
               </div>
 
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
@@ -227,9 +289,13 @@ export default function CancelarReservaPage() {
                   <ArrowLeft className="h-4 w-4" />
                   Voltar
                 </Link>
-                <button className="flex items-center justify-center gap-2 rounded-lg bg-[#FF9F68] px-6 py-2.5 text-sm font-bold text-[#7C2D12] shadow-sm hover:bg-[#FFB380]">
+                <button
+                  onClick={handleCancel}
+                  disabled={submitting}
+                  className="flex items-center justify-center gap-2 rounded-lg bg-[#FF9F68] px-6 py-2.5 text-sm font-bold text-[#7C2D12] shadow-sm hover:bg-[#FFB380] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <XCircle className="h-4 w-4" />
-                  Confirmar cancelamento
+                  {submitting ? "Cancelando..." : "Confirmar cancelamento"}
                 </button>
               </div>
             </div>
@@ -240,3 +306,14 @@ export default function CancelarReservaPage() {
   );
 }
 
+export default function CancelarReservaPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#B3D4FC] flex items-center justify-center">
+        <div className="text-xl font-bold text-gray-700">Carregando...</div>
+      </div>
+    }>
+      <CancelarReservaContent />
+    </Suspense>
+  );
+}
